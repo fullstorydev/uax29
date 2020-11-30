@@ -12,10 +12,36 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"github.com/clipperhouse/uax29/words"
 )
+
+func TestJapanese(t *testing.T) {
+	inputs := []string{
+		"ピザ近く",
+		"近くの焼き肉",
+		"本屋周辺",
+	}
+
+	for _, s := range inputs {
+		t.Logf("input: %s", s)
+
+		for _, r := range s {
+			t.Logf("  rune: %s", string(r))
+			if unicode.Is(unicode.Han, r) {
+				t.Log("    ✔ Han (Kanji)")
+			}
+			if unicode.Is(unicode.Hiragana, r) {
+				t.Log("    ✔ Hiragana")
+			}
+			if unicode.Is(unicode.Katakana, r) {
+				t.Log("    ✔ Katakana")
+			}
+		}
+	}
+}
 
 func TestScanner(t *testing.T) {
 	original := `Hi.    
