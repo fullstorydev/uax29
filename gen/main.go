@@ -15,7 +15,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/clipperhouse/uax29/gen/triegen"
+	"github.com/fullstorydev/uax29/gen/triegen"
 )
 
 func main() {
