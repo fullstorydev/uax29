@@ -384,29 +384,43 @@ func BenchmarkUnicodeSegments(b *testing.B) {
 func TestScannerMaxTokenLen(t *testing.T) {
 	// Build a string longer than the max token length
 	str := ""
-	for i := 0; i < words.MaxTokenLengthDefault + 5; i++ {
-		if i == words.MaxTokenLengthDefault {
-			str += "."
-		}
+	for i := 0; i < words.MaxTokenLengthDefault; i++ {
 		str += "a"
 	}
-
-	scanner := words.NewScanner(strings.NewReader(str))
-
-	expected := []string{str[:words.MaxTokenLengthDefault], ".", str[words.MaxTokenLengthDefault + 1:]}
-	i := 0
-
-	for scanner.Scan() {
-		token := scanner.Text()
-		if token != expected[i] {
-			t.Errorf("expected %q to be %q", token, expected[i])
-		}
-		i++
+	testCases := []struct{
+		input string
+		expected []string
+	}{
+		{
+			input: str + ".aaa",
+			expected: []string{str, ".", "aaa"},
+		},
+		{
+			// Do not break between letters
+			// https://unicode.org/reports/tr29/#WB6
+			input: str + "a.aaa",
+			expected: []string{str, "a.aaa"},
+		},
 	}
-	if i != len(expected) {
-		t.Errorf("found %d tokens but expected %d", i, len(expected))
-	}
-	if err := scanner.Err(); err != nil {
-		t.Error(err)
+
+	for _, tc := range testCases {
+		t.Run(tc.input, func(t *testing.T) {
+			scanner := words.NewScanner(strings.NewReader(tc.input))
+			i := 0
+
+			for scanner.Scan() {
+				token := scanner.Text()
+				if token != tc.expected[i] {
+					t.Errorf("expected %q to be %q", token, tc.expected[i])
+				}
+				i++
+			}
+			if i != len(tc.expected) {
+				t.Errorf("found %d tokens but expected %d", i, len(tc.expected))
+			}
+			if err := scanner.Err(); err != nil {
+				t.Error(err)
+			}
+		})
 	}
 }
