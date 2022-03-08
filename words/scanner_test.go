@@ -3,6 +3,7 @@ package words_test
 import (
 	"bufio"
 	"bytes"
+	"github.com/fullstorydev/uax29/words"
 	"io/ioutil"
 	"math"
 	"math/rand"
@@ -13,8 +14,6 @@ import (
 	"testing"
 	"time"
 	"unicode/utf8"
-
-	"github.com/fullstorydev/uax29/words"
 )
 
 func TestScanner(t *testing.T) {
@@ -379,5 +378,35 @@ func BenchmarkUnicodeSegments(b *testing.B) {
 		}
 
 		b.ReportMetric(float64(c), "tokens")
+	}
+}
+
+func TestScannerMaxTokenLen(t *testing.T) {
+	// Build a string longer than the max token length
+	str := ""
+	for i := 0; i < words.MaxTokenLengthDefault + 5; i++ {
+		if i == words.MaxTokenLengthDefault {
+			str += "."
+		}
+		str += "a"
+	}
+
+	scanner := words.NewScanner(strings.NewReader(str))
+
+	expected := []string{str[:words.MaxTokenLengthDefault], ".", str[words.MaxTokenLengthDefault + 1:]}
+	i := 0
+
+	for scanner.Scan() {
+		token := scanner.Text()
+		if token != expected[i] {
+			t.Errorf("expected %q to be %q", token, expected[i])
+		}
+		i++
+	}
+	if i != len(expected) {
+		t.Errorf("found %d tokens but expected %d", i, len(expected))
+	}
+	if err := scanner.Err(); err != nil {
+		t.Error(err)
 	}
 }

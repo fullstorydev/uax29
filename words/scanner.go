@@ -7,6 +7,12 @@ import (
 	"unicode/utf8"
 )
 
+type Scanner struct {
+	*bufio.Scanner
+	currIsSeparator bool
+	maxTokenLength int
+}
+
 // NewScanner tokenizes a reader into a stream of tokens according to Unicode Text Segmentation word boundaries https://unicode.org/reports/tr29/#Word_Boundaries.
 // Iterate through the stream by calling Scan() until false.
 //	text := "This is an example."
@@ -19,10 +25,16 @@ import (
 //	if err := scanner.Err(); err != nil {
 //		log.Fatal(err)
 //	}
-func NewScanner(r io.Reader) *bufio.Scanner {
-	scanner := bufio.NewScanner(r)
-	scanner.Split(SplitFunc)
-	return scanner
+func NewScanner(r io.Reader) *Scanner {
+	return NewScannerWithTokenLen(r, MaxTokenLengthDefault)
+}
+
+func NewScannerWithTokenLen(r io.Reader, maxTokenLength int) *Scanner {
+	sw := &Scanner{
+		maxTokenLength: maxTokenLength,
+	}
+	sw.Scanner = sw.newScanner(r)
+	return sw
 }
 
 var trie = newWordsTrie(0)
@@ -36,10 +48,22 @@ const (
 	_AHLetter   = _ALetter | _HebrewLetter
 	_MidNumLetQ = _MidNumLet | _SingleQuote
 	_Ignore     = _Extend | _Format | _ZWJ
+
+	MaxTokenLengthDefault = 255
 )
 
-// SplitFunc is a bufio.SplitFunc implementation of word segmentation, for use with bufio.Scanner
-func SplitFunc(data []byte, atEOF bool) (advance int, token []byte, err error) {
+func (sw *Scanner) newScanner(r io.Reader) *bufio.Scanner {
+	scanner := bufio.NewScanner(r)
+	scanner.Split(sw.splitFunc)
+	return scanner
+}
+
+func (sw *Scanner) CurrIsSeparator() bool {
+	return sw.currIsSeparator
+}
+
+// splitFunc is a bufio.SplitFunc implementation of word segmentation, for use with bufio.Scanner
+func (sw *Scanner) splitFunc(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	if len(data) == 0 {
 		return 0, nil, nil
 	}
@@ -51,6 +75,10 @@ func SplitFunc(data []byte, atEOF bool) (advance int, token []byte, err error) {
 	for {
 		sot := pos == 0         // "start of text"
 		eot := pos == len(data) // "end of text"
+
+		if pos >= sw.maxTokenLength {
+			break
+		}
 
 		if eot {
 			if !atEOF {
@@ -143,6 +171,9 @@ func SplitFunc(data []byte, atEOF bool) (advance int, token []byte, err error) {
 					w = w2
 
 					pos += w
+					if pos >= sw.maxTokenLength {
+						break
+					}
 				}
 				continue
 			}
@@ -251,6 +282,9 @@ func SplitFunc(data []byte, atEOF bool) (advance int, token []byte, err error) {
 					w = w2
 
 					pos += w
+					if pos >= sw.maxTokenLength {
+						break
+					}
 				}
 				continue
 			}
